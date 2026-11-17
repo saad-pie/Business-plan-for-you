@@ -1,0 +1,507 @@
+📤 COMPLETE HANDOFF DOCUMENT
+
+For: My Business Partner
+
+Project: Amazon/AliExpress Affiliate Discovery Storefront (Pakistan)
+
+Status: Research Complete — Ready to Build
+
+---
+
+HOW TO READ THIS DOCUMENT:
+This is the complete, unfiltered record of every decision, dead-end, tool evaluation, and hard constraint we've hit. Nothing is omitted. Technical terms are explained in plain English the first time they appear. At the end of each section, I've marked [INPUT NEEDED FROM YOU] — those are the things I need from you to move forward.
+
+---
+
+📖 SECTION 0: GLOSSARY — Every Term Explained
+
+Read this first. Every term below appears somewhere in the document.
+
+Term Plain English Meaning
+API "Application Programming Interface" — a way for one website's code to ask another website's server for data. Think of it as a waiter: you (our site) give an order (a request) to the waiter (API), and the kitchen (the other site's database) sends back food (data).
+API Key A secret password that identifies us to the API. Without it, the API refuses to serve us.
+API Call / Request One single order placed with the waiter. One call returns ONE PAGE of results, not one product, and not the whole database. This is the most misunderstood concept in the whole project — I'll explain it repeatedly.
+Rate Limit How fast we're allowed to place orders. E.g., "30 requests per minute" means we can order 30 pages of data every 60 seconds, no faster. Exceed it → the API blocks us temporarily.
+Quota How many orders we're allowed in a period (day / month / year / one-time). E.g., "1,000 requests per month" = 1,000 pages per month, then it resets.
+Pagination The process of requesting page 1, then page 2, then page 3… because no API gives you the whole database in one call. We write a loop (code that repeats) to fetch page after page.
+Scraping Automatically reading data off a public webpage as if a robot were browsing it. Not the same as an official API. Legally gray. May violate a site's Terms of Service.
+Aggregator A middleman service that connects to many other services and gives us one unified interface so we don't have to integrate each one separately.
+Unified Schema A single, consistent data format. E.g., a product from Amazon and a product from AliExpress both come back with the same field names (title, price, image_url), so our code doesn't need to be rewritten for each platform.
+Affiliate Marketing We display a product. A user clicks our special link. They buy on the merchant's site. The merchant pays us a commission. We never touch the money, the product, or the shipping.
+Affiliate Link A URL that contains our unique tracking ID. When someone clicks it, a cookie is set in their browser so the merchant knows we sent them.
+Cookie Window The time period after a click during which we still get credit if the user buys. Typically 30 days. If they buy after the cookie expires, we get nothing.
+Postback An automatic server-to-server message the merchant sends to the affiliate network saying "this sale belongs to affiliate ID #12345." This is how commissions are tracked without us doing anything manually.
+Commission Our cut of the sale. E.g., 5% of a $100 product = $5 to us.
+Payout Threshold The minimum balance we must accumulate before we can withdraw. E.g., "$10 minimum" means we can't withdraw $9.50.
+Payment Hold A delay before commissions become withdrawable. E.g., "60-day hold" means commissions from January 1 become withdrawable around March 1. This exists because of returns/refunds.
+COD (Cash on Delivery) The customer pays cash when the package arrives. We cannot offer this as affiliates — only the merchant can.
+Dropshipping We list products, customer pays us, we order from a supplier who ships directly to the customer. This is NOT what we're doing. It requires capital, payment processing, and logistics.
+Reseller We buy inventory, hold it, ship it, handle customer service. Even more capital-intensive than dropshipping. Not what we're doing.
+PSEB Pakistan Software Export Board. A government body. Registering with them classifies our income as "IT export services" and drops our tax rate dramatically.
+NTN National Tax Number. Pakistan's tax ID for businesses/individuals earning taxable income. Required before PSEB registration.
+W-8BEN A US tax form. Pakistan has a tax treaty (DTAA) with the USA. Filing W-8BEN tells Amazon "tax me at the treaty rate, not the default."
+DTAA Double Taxation Avoidance Agreement. A treaty between two countries so you don't pay tax twice on the same income.
+KYC "Know Your Customer." Identity verification. Some services require a registered company + corporate email to pass KYC. Students with Gmail accounts get blocked.
+RPS "Requests Per Second." A rate limit measured in seconds instead of minutes. 2 RPS = 2 requests every second.
+Compute Unit A billing measurement used by some cloud platforms (like Apify). Instead of charging per request, they charge per "unit of computing work done." Heavier tasks burn more units.
+Credit-based billing You get a dollar amount of credit (e.g., $5). Each action costs some fraction of that credit. When the credit is gone, it's gone (unless it renews).
+Request-based billing You get a number of requests (e.g., 1,000). Each API call uses one. Simpler to plan around than credit-based billing.
+SP-API Amazon's official "Selling Partner API." Powerful but heavily restricted. Cannot be mixed with third-party data in the same application without violating Amazon's terms. We are not using it.
+Payout The actual money leaving the affiliate network and arriving in our Payoneer account.
+Net-30 / NET-30 Payment terms meaning "paid 30 days after the invoice/end of month." A type of payment delay.
+Geo Short for "geography" / region. When a provider says "catalogue availability varies by geo," it means "the products available in Pakistan might be different from the products available in the USA."
+
+---
+
+🧩 SECTION 1: THE ORIGINAL IDEA — AND WHY WE KILLED IT
+
+1.1 What I First Proposed
+
+Open a store using the AliExpress API. Deliberately hide or soften words like "Chinese," "shipping," and "delivery" so customers wouldn't be scared off by long international shipping times or country-of-origin concerns.
+
+1.2 Why It Failed — Three Reasons
+
+Reason 1: API access is tiered, not generic.
+There is no single "AliExpress API key" that unlocks everything. AliExpress offers three separate programs:
+
+· Dropshipping API — for resellers who fulfill orders. Requires developer account + explicit permission application.
+· Affiliate API — only for promoting products to earn commission. No order management.
+· Merchant Self-Use API — only for managing your own AliExpress store.
+
+None of these let us do what I originally imagined (open a store with hidden origin).
+
+Reason 2: The physical package exposes the truth.
+AliExpress sellers are legally required to print their real Chinese return address on the outside of every package. Even if our website hides every mention of China, the cardboard box that arrives at the customer's door says "Shenzhen, China" in bold letters. The customer opens the box, sees the label, and feels deceived. This is the exact angry-customer scenario we were trying to avoid — and we would have caused it ourselves.
+
+Reason 3: Terms of Service violation.
+AliExpress's terms explicitly prohibit misrepresenting product origin and prohibit "systematic retrieval of Site Content to build a collection, compilation, database, or directory" without written permission. Hiding origin violates the first. Scraping their catalog violates the second. Two violations, zero defenses.
+
+1.3 Verdict
+
+LOSE situation. High legal risk, physically impossible to execute, guaranteed to create angry customers. This idea is dead. We move on.
+
+---
+
+🔄 SECTION 2: THE PIVOT — "UNITE ALL STORES INTO ONE"
+
+2.1 New Vision
+
+A single unified storefront that aggregates products from Amazon (premium feel), AliExpress (cheap/free feel), and others — "nothing new, just all in one." The user sees one beautiful website. Behind the scenes, we pull data from many sources.
+
+2.2 The Core Architectural Finding
+
+No single provider covers every platform for both product data AND affiliate data.
+
+This means we cannot just sign up for one service and be done. We need a layered stack — different tools for different jobs, stacked on top of each other.
+
+2.3 The Three-Layer Architecture
+
+Layer 1 — Our Custom Frontend:
+Our own website. Our own design. Our own branding. This is the only part the customer ever sees. It looks like Amazon, feels like Amazon, but it's ours.
+
+Layer 2 — Product Data Layer:
+Tools that fetch product information (titles, prices, images, descriptions) from Amazon, AliExpress, etc., and normalize it into one consistent format so our frontend can display it uniformly.
+
+Layer 3 — Affiliate/Monetization Layer:
+Tools that generate our tracked affiliate links and report commissions back to us.
+
+2.4 The Critical Legal Catch (Amazon SP-API)
+
+Amazon's official API (SP-API) has a rule: you cannot mix SP-API data with third-party data in the same application. If we pull Amazon data officially and also pull AliExpress data from a scraper, and display them side-by-side, we violate Amazon's terms.
+
+Our solution: Do not use Amazon's official SP-API at all. Use only third-party scrapers/aggregators for all data. This keeps us out of Amazon's direct compliance framework entirely.
+
+2.5 The "56 Similar + One FREE on AliExpress" Feature
+
+This is the killer feature we want. When a user views a product, we show:
+
+· "56 similar products"
+· "One of these is FREE on AliExpress" (or dramatically cheaper)
+
+How it works technically:
+
+· Visual/image search — send an image to an API, get back visually similar products across platforms.
+· Keyword/category matching — search other platforms using the product's title and category.
+· Price comparison badges — flag items found cheaper elsewhere.
+
+PROFIT situation: This feature is what makes us different from just "another Amazon clone." It gives users a reason to visit us instead of going straight to Amazon.
+
+LOSE situation: If we can't reliably match products across platforms (because titles differ wildly, or images are watermarked differently), the feature looks broken and users lose trust.
+
+[INPUT NEEDED FROM YOU]: Do you agree this "56 similar + one free" feature is our main differentiator? Or do you want to focus on a different angle (e.g., curated "best of" lists, or user reviews)?
+
+---
+
+🔗 SECTION 3: AFFILIATE DATA SEPARATION
+
+3.1 The Question I Asked
+
+"Does the product-data aggregator (Apinoa) also provide affiliate data so we can bypass AliExpress directly?"
+
+3.2 The Answer
+
+No. Product-data aggregators (Apinoa, Apify) are not affiliate networks. They survive legally as neutral infrastructure layers — they just move data. They don't touch money or commissions.
+
+The compliance burden falls on us. They provide the data; we own the application logic and the legal responsibility for how we use it.
+
+3.3 Affiliate Aggregators We Evaluated
+
+Provider What It Does Why We Considered It Why We Kept/Dropped It
+Synced.io 54 networks, uses your own credentials Network-independent infrastructure Dropped — requires our own network accounts, which we don't have
+Hi Energy AI REST API across FlexOffers, CJ, Rakuten, Impact, Awin Developer-friendly Dropped — no clear free tier for students
+Datafeedr 950M+ products across 35+ networks Massive catalog Dropped — product-feed oriented, not link-generation focused
+Affiliate.com Amazon, Walmart, 16k+ merchants Strong Western coverage Dropped — no AliExpress, no Chinese platforms
+Feedico CJ, Awin, Impact, Admitad, TradeTracker, TakeDeals, Takeads No approvals needed, 65% commission kept, Payoneer payouts KEPT as structured backup — but 100 req/day cap is limiting
+CBAPI.dev ClickBank, Awin, Impact, CJ, eBay Completely free, no paid tiers, 30 req/min KEPT as primary — closest to "free unlimited"
+afilimax Node.js library, Puppeteer-based Unified link creation across platforms DROPPED — Puppeteer (browser automation with logged-in cookies) is fragile and likely violates platform terms
+
+3.4 Official APIs We Dropped
+
+· AliExpress Affiliate API — free but requires registration and quotas; harder to manage as a solo student
+· TikTok Shop Partner API — requires partner approval, enterprise paperwork
+· Temu Partner Platform — requires partner approval
+
+Reason for dropping all three: As a student, official API approvals are a bureaucratic nightmare we don't have time or standing to navigate. Third-party aggregators let us skip the paperwork.
+
+LOSE situation: Dropping official APIs means we cannot generate native commissionable links for TikTok Shop, Temu, Shopee, Lazada, Alibaba, or Taobao. Those platforms will be display-only until we're ready to pursue official approval later.
+
+---
+
+🏗️ SECTION 4: FULL COVERAGE MATRIX — THE GAPS MADE VISIBLE
+
+4.1 The 14 Target Stores
+
+Amazon, TikTok Shop, Shopee, Lazada, AliExpress, Alibaba (1688), Temu, Walmart, Etsy, eBay, Shein, Taobao, Shopify.
+
+4.2 Product Data Coverage — SOLVED
+
+One tool — Apify E-commerce Scraper — covers all 14 stores in unified JSON. (Note: later downgraded from "primary" to "occasional use" because its free tier is credit-based, not request-based. But it technically CAN cover everything.)
+
+4.3 Affiliate Coverage — HARD GAPS
+
+Store Product Data Affiliate Links (Third-Party) Status
+Amazon ✅ ✅ Feedico / CBAPI.dev Monetizable
+Walmart ✅ ✅ Feedico Monetizable
+eBay ✅ ⚠️ Via Awin/CJ / ✅ CBAPI.dev Monetizable
+Etsy ✅ ⚠️ Via Awin Partial
+Shopify ✅ ❌ No unified generator Display only
+TikTok Shop ✅ ❌ Requires official API Display only
+Temu ✅ ❌ Requires official API Display only (but Temu Affiliate program is separate — open to Pakistan)
+Shein ✅ ⚠️ Via Awin/CJ/Takeads Partial
+AliExpress ✅ ✅ Via Admitad (inside Feedico) Monetizable
+Alibaba/1688 ✅ ❌ No aggregator Display only
+Taobao ✅ ❌ No aggregator Display only
+Shopee ✅ ❌ No aggregator Display only
+Lazada ✅ ❌ No aggregator Display only
+
+PROFIT situation: Amazon, Walmart, eBay, AliExpress are fully monetizable → real revenue from day one.
+
+LOSE situation: TikTok Shop, Temu, Shopee, Lazada, Alibaba, Taobao, Shopify are display-only → we show products but earn nothing when users click. This is the boundary of third-party-only. To cross it, we eventually need official API approvals.
+
+---
+
+💸 SECTION 5: THE "EVERYTHING FREE" CONSTRAINT — FINAL VERIFIED LIMITS
+
+5.1 The Rule
+
+Student budget = $0. Every provider was stress-tested for exact on-the-ground limits — not marketing claims.
+
+5.2 Product Data Providers — Final Verified Table
+
+Provider Covers Free Cap Structure Exact Limit Per-Minute Limit Verdict
+Amazonscraperapi Amazon Recurring monthly 1,000 requests/month, no daily cap, no card 2 sustained RPS, burst 10 for 3s ✅ PRIMARY
+BayDeep AliExpress Never-expiring key Self-serve key via mint_free_key, never expires, full tool access 30 req/min per IP ✅ PRIMARY
+Canopy API Amazon Recurring monthly 100 requests/month, free forever, blocked if exceeded Not published ⚠️ Testing only
+Serpent Amazon One-time + daily demo 10 free calls on signup + 1 demo/day Not cleanly published ❌ Rejected — $10 min deposit for real use
+Bright Data Amazon Recurring monthly (advertised) 5,000 records/month Not published ❌ ELIMINATED — free tier "never granted," KYC wall, enterprise pricing
+Apify Multi-platform Recurring credit $5 credit/month $0.20/compute unit ⚠️ One-off pulls only
+AntsData Amazon + others One-time credit $5 balance on signup Varies ⚠️ First batch only
+Pangolin Amazon + others Recurring monthly 60 credits/month Not published ❌ Too limited
+
+5.3 Affiliate Data Providers — Final Verified Table
+
+Provider Covers Free Cap Structure Exact Limit Per-Minute Limit Verdict
+CBAPI.dev ClickBank, Awin, Impact, CJ, eBay Free unlimited No monthly cap, no paid tiers 30 req/min ✅ PRIMARY
+Feedico CJ, Awin, Impact, Admitad, TradeTracker, TakeDeals, Takeads Recurring monthly 1,000/month, 100/day, 10 results/page, first 5 pages/query 10 req/min ⚠️ Structured backup only
+
+5.4 Why Bright Data Was Eliminated (Full Detail)
+
+· Fresh accounts reported the free tier was "never granted"
+· Account suspended at $0 balance, first API call timed out after 120 seconds
+· KYC wall: residential proxy network requires human-reviewed identity verification, explicitly unavailable to individual users, student projects, and Gmail/Outlook accounts
+· Paid plans start at $1,500/month — completely out of reach
+· Verdict: LOSE situation. Integration time would be wasted. Skip it entirely.
+
+5.5 Why Serpent Was Rejected
+
+· 10 free calls on signup is enough to test that the API works, not enough to build a catalog
+· $0.02/1,000 rate requires **$10 minimum deposit** — not free
+· Verdict: LOSE situation. It's a paid product with a tiny free trial, not a free tier.
+
+---
+
+📐 SECTION 6: WHAT "1 API CALL" ACTUALLY MEANS (CRITICAL)
+
+6.1 The Misconception I Had
+
+I initially thought "1 API call = 1 product" or "1 API call = the whole database." Both are wrong.
+
+6.2 The Correct Understanding
+
+One API call = ONE PAGE of results. Usually 10–100 products depending on the provider.
+
+6.3 The Correct Math
+
+Total product records = (number of calls in the period) × (products per call)
+
+6.4 Your Realistic Monthly Capacity
+
+Amazon (Amazonscraperapi):
+
+· 1,000 requests/month × 16–48 products per page = 16,000–48,000 product records per month
+· Minus duplicates, sponsored items, variants that repeat across pages
+· Realistic unique catalog: maybe 10,000–30,000 usable unique products/month
+
+AliExpress (BayDeep):
+
+· The key never expires, so time is the only constraint, not quota
+· Limited by 30 req/min and avoiding quota-heavy endpoints (search_products, product_detail consume platform quota; use shelf_search for repeated lookups)
+· Realistic: you can build a large AliExpress catalog over several weeks, not in one day
+
+6.5 The "Per Day" Confusion (Explained)
+
+I asked: "Is 10 × 1000 calls = 10,000 products per day?"
+No. That depends on the quota period:
+
+· 1,000 calls/month × 10 products/call = 10,000 records/MONTH
+· 1,000 calls/day × 10 products/call = 10,000 records/DAY
+· 1,000 calls one-time × 10 products/call = 10,000 records TOTAL, ever
+
+You must always ask: "Is the quota per day, per month, or one-time?"
+
+6.6 Other Practical Catches
+
+· Records ≠ unique products. Pagination returns duplicates.
+· Search APIs often cap total results. E.g., Amazon-style APIs may only let you page through the first 100 results per search query, even if you have more calls left.
+· Free tiers reset monthly, not daily — verify each provider's terms.
+
+[INPUT NEEDED FROM YOU]: Are you okay with building the Amazon catalog at roughly 10,000–30,000 unique products per month? Or do you want to explore paid tiers early to go faster?
+
+---
+
+🇵🇰 SECTION 7: PAKISTAN-SPECIFIC REALITY CHECKS
+
+7.1 Daraz Rejected
+
+· Original plan: use Daraz as a local anchor (bank/JazzCash/Easypaisa payouts, local trust).
+· Why rejected: Local distrust of Daraz is widespread. Building our site on a platform people already distrust is a losing battle.
+· Verdict: LOSE situation. We abandon Daraz entirely.
+
+7.2 Temu Hype (Legit Version)
+
+· Goal: Capture the Temu-style excitement (cheap, exciting, viral products) but with legitimately good products including Amazon.
+· Key finding: Temu Affiliate Program is open to Pakistan. Commission 5–30%. Direct revenue path.
+· Verdict: PROFIT situation. This is our first real revenue stream.
+
+7.3 COD Contradiction (MAJOR ISSUE)
+
+· COD is incompatible with affiliate marketing.
+· Temu does NOT offer COD in Pakistan (prepaid only — a point of criticism from local regulators).
+· AliExpress rarely offers COD on cross-border Pakistan orders.
+· You cannot offer COD as an affiliate — the merchant controls payment; you just earn a referral commission.
+
+PROFIT situation: We don't need to build any COD collection system. The merchant handles it. Our backend just redirects.
+
+LOSE situation: We cannot advertise "Cash on Delivery available" on our site, because it's not our call. If users expect COD and find out at checkout that it's card-only, they'll abandon. We must be honest upfront: "Payment is made on Temu/AliExpress checkout. COD availability depends on the merchant."
+
+7.4 Affiliate ≠ Dropshipping (CRUCIAL)
+
+Model You Handle Payment? You Offer COD? Cost
+Affiliate No — merchant does No Free
+Dropshipping/Reseller Yes — you do Yes (with capital) Requires capital, payment gateway, courier
+
+· Affiliate = discovery/comparison layer + redirect + commission.
+· Dropshipping = full storefront + payment collection + logistics.
+· Student constraint → affiliate only.
+
+LOSE situation if we tried dropshipping: We'd need to buy inventory upfront, arrange international shipping to Pakistan, register a business, integrate a Pakistani payment gateway (Safepay, PayFast), sign a courier contract (TCS, Leopards), and handle customer service for every order. That's a full company. Not a student project.
+
+---
+
+🧠 SECTION 8: COMMISSION TRACKING MECHANICS
+
+8.1 You Do NOT Track Commissions Manually
+
+This was a major question. Here's the automated flow:
+
+1. We generate a unique affiliate link with our tracking ID embedded.
+2. User clicks → a cookie is set in their browser (30-day typical window).
+3. User buys on the merchant's site.
+4. Merchant's server sends a postback to the affiliate network saying "this sale belongs to affiliate #12345."
+5. Network credits our dashboard automatically.
+6. We request payout once we hit the threshold.
+
+8.2 Payout Thresholds (What We Need to Know)
+
+Platform Minimum Payout Payment Hold Payout Frequency
+Temu ~$20 30–60 days (for returns) Monthly
+AliExpress (via Admitad) $10 ~60 days NET-30 (paid after advertiser pays Admitad)
+Amazon Associates ~$10 (via Payoneer) Standard Monthly
+
+PROFIT situation: Once the flow is set up, it's genuinely passive. We check the dashboard, request withdrawal, receive money in Payoneer.
+
+LOSE situation: If our affiliate link is broken or the cookie doesn't set (e.g., user has strict privacy settings), the sale is attributed to "no affiliate" and we earn $0. We must test every link format carefully.
+
+[INPUT NEEDED FROM YOU]: Are you comfortable being the one who checks the affiliate dashboards monthly and requests payouts? Or should we split this (you check Temu, I check Admitad/Amazon)?
+
+---
+
+💰 SECTION 9: PAYOUTS AND TAXES (PAKISTAN)
+
+9.1 Payout Reality
+
+· PayPal does not serve Pakistan. Full stop.
+· Payoneer is the practical route: US/EU receiving accounts → withdraw to Pakistani bank.
+· Amazon Associates + Payoneer = widely used by Pakistani affiliates, but not officially documented by Amazon for Pakistan. Unverified. Test with a small payout before relying on it.
+
+9.2 Payoneer Fee Reality (Updated)
+
+· **$4 withdrawal fee** on a $200 payout (~2%)
+· ~2% currency conversion margin (USD→PKR)
+· Reports of 3% withdrawal fee for Pakistani users since May 2025 — verify current fee in your dashboard before relying on exact numbers
+
+Example: You earn $200 commission. After $4 fee + 2% conversion margin, you receive roughly $192–$194 in PKR equivalent. On a 5% commission product, that $200 was generated by ~$4,000 in sales. So our effective take-home is slightly less than the headline commission rate.
+
+9.3 Taxes
+
+· Affiliate income = taxable foreign-source business income in Pakistan.
+· Without PSEB registration: standard non-salaried slabs (e.g., 15% on Rs 600k–1.2M) or 1% for unregistered IT exporters.
+· With PSEB registration: treated as IT export → final 0.25% tax under Section 154A. Massive difference.
+· US withholding: Submit W-8BEN claiming Pakistan-USA DTAA benefits during Amazon signup. Miss it → 30% permanently withheld, no Pakistani credit. That means if we earn $1,000 from Amazon and don't file W-8BEN, we only receive $700. The $300 is gone forever.
+
+9.4 Required Actions (In Order)
+
+1. Get NTN (National Tax Number).
+2. Register with PSEB.
+3. File annual return before 30 September every year.
+4. File W-8BEN during Amazon Associates signup.
+
+PROFIT situation: PSEB registration drops our tax from potentially 15% to 0.25%. On Rs 1,000,000 income, that's Rs 2,500 tax instead of Rs 150,000. Huge.
+
+LOSE situation: If we skip PSEB registration, we pay 60x more tax. If we skip W-8BEN, we lose 30% of US commissions permanently.
+
+[INPUT NEEDED FROM YOU]: Do you have an NTN already, or do we both need to get one? Who handles the PSEB registration — one of us, or do we split the paperwork?
+
+---
+
+🏁 SECTION 10: FINAL DECISION & UPDATED STACK
+
+10.1 Chosen Path
+
+Affiliate storefront — not dropshipping, not reseller.
+
+10.2 Final "Start Short" Scope
+
+· Platforms: Amazon + AliExpress only (for now).
+· Model: Affiliate storefront with Amazon-like UI — product pages, categories, search, filters, wishlist, comparison.
+· No checkout. "Buy on Amazon/AliExpress" button redirects via affiliate link.
+
+10.3 Final Free Stack (Ground-Truthed)
+
+Layer Tool Free Allowance Status
+Amazon data Amazonscraperapi 1,000 requests/month, no daily cap, 2 RPS ✅ PRIMARY
+ Canopy 100/month forever ⚠️ Testing only
+ Serpent 10 free calls + 1 demo/day ❌ Rejected
+ Bright Data 5,000 records/month (advertised) ❌ ELIMINATED
+ Apify $5 credit/month ⚠️ One-off pulls
+ AntsData $5 one-time credit ⚠️ First batch only
+ Pangolin 60 credits/month ❌ Too limited
+AliExpress data BayDeep Free key, never expires, 30 req/min ✅ PRIMARY
+Affiliate links CBAPI.dev Free unlimited, 30 req/min ✅ PRIMARY
+ Feedico 1,000/month, 100/day, 10/min ⚠️ Structured backup
+ AliExpress via Admitad Payoneer, $10 min, 60-day hold ✅ For AliExpress commissions
+Payouts Payoneer Free to set up ✅ Required
+Tax optimization PSEB + NTN 0.25% final tax ✅ Critical
+
+10.4 What This Stack Cannot Do
+
+· Offer COD on our site
+· Handle payments or shipping
+· Provide native affiliate links for TikTok Shop, Temu, Shopee, Lazada, Alibaba, Taobao (requires official APIs later)
+
+---
+
+🎯 SECTION 11: IMMEDIATE NEXT STEPS (ORDERED)
+
+1. Call mint_free_key on BayDeep → get permanent AliExpress API key (no signup, never expires).
+2. Sign up for Amazonscraperapi → 1,000 requests/month, no card, no daily cap.
+3. Get free API key from CBAPI.dev → unlimited affiliate data at 30 req/min.
+4. Sign up for Feedico Partner → verify Amazon + AliExpress merchant availability in Pakistan geo (structured backup).
+5. Apply for Temu Affiliate → first real revenue stream (hype products, open to Pakistan).
+6. Build minimal UI → product pages + search + redirect buttons.
+7. Set up Payoneer → receiving account ready; verify current Pakistan withdrawal fee.
+8. Get NTN + register PSEB → lock in 0.25% tax rate (vs 1% unregistered).
+9. File W-8BEN when applying to Amazon Associates (avoid 30% withholding).
+
+---
+
+⚠️ SECTION 12: PERSISTENT HARD CONSTRAINTS (NEVER FORGET)
+
+1. No COD as an affiliate. Merchant controls payment. Non-negotiable.
+2. No checkout on our site. Redirect model only.
+3. No native affiliate for TikTok Shop, Temu, Shopee, Lazada, Alibaba, Taobao without official APIs — display-only for now.
+4. Apify is scraping, not official API — legal gray zone; also credit-based, not request-based.
+5. Amazon + Payoneer for Pakistan is unverified — test with a small payout before relying on it.
+6. Feedico catalogue availability varies by geo — verify Pakistan before building revenue on it.
+7. Bright Data is dead for students — KYC wall, unreliable free tier, enterprise pricing.
+8. Serpent is not a catalog tool — 10 free calls then $10 minimum deposit.
+9. "1 API call" = 1 page, not 1 product and not the full database.
+10. Payoneer fees may be higher than advertised — verify 3% vs 2% withdrawal fee in your dashboard.
+11. Official APIs are a bureaucratic nightmare for students — third-party aggregators let us skip the paperwork, but cap our coverage.
+
+---
+
+📊 SECTION 13: WIN/LOSE SCORECARD — EVERY MAJOR DECISION
+
+Decision Profit / Win Loss / Lose
+Reject hiding origin Avoids legal risk, avoids angry customers, avoids ToS violation We lose the "cheap Chinese product" marketing angle — must find other hooks
+Choose affiliate over dropshipping Free, no capital, no logistics, passive income No COD, no checkout, cannot control customer experience, lower margins
+Reject Daraz Avoids associating with a distrusted brand Lose local anchor, lose JazzCash/Easypaisa payouts, lose Pakistan-specific traffic
+Choose third-party over official APIs No enterprise paperwork, no approvals, faster start Cannot monetize TikTok Shop, Temu, Shopee, Lazada, Alibaba, Taobao directly
+Amazonscraperapi as Amazon primary 1,000 free requests/month, no daily cap, 2 RPS, reliable 1,000/month is limiting — catalog grows slowly
+BayDeep as AliExpress primary Free key never expires, no signup 30 req/min limit, quota-heavy endpoints must be avoided
+CBAPI.dev as affiliate primary Free unlimited, 30 req/min Covers Western merchants only (ClickBank, Awin, Impact, CJ, eBay)
+Feedico as structured backup Payoneer payouts, 65% commission kept, 7 networks 100 requests/day cap, 10/min rate limit — cannot bulk import
+Eliminate Bright Data Saves integration time Lose "5,000 records/month" advertised tier (which didn't work anyway)
+Reject Serpent Avoids $10 minimum deposit Lose $0.02/1,000 cheap paid option
+PSEB registration 0.25% tax instead of 15% — massive savings Requires NTN, paperwork, annual filing, 30 September deadline
+W-8BEN filing Avoids 30% US withholding Must remember to file during signup — easy to miss
+Temu Affiliate program Open to Pakistan, 5–30% commission, first revenue 30–60 day hold, $20 minimum, prepaid-only (no COD)
+AliExpress via Admitad Payoneer payout, $10 min, open to Pakistan 60-day hold, requires Admitad account setup
+"56 similar + one free" feature Killer differentiator, drives engagement Technically complex — visual search or keyword matching may be unreliable across platforms
+Amazon + Payoneer combination Widely used by Pakistani affiliates Unverified — Amazon does not officially document Payoneer for Pakistan
+
+---
+
+📌 SECTION 14: ONE-LINE SUMMARY
+
+We are building a free, affiliate-based, Amazon-like discovery storefront for Amazon + AliExpress only, using Amazonscraperapi (1,000 req/mo) for Amazon data, BayDeep (never-expiring key) for AliExpress data, CBAPI.dev (unlimited, 30 req/min) for affiliate links, and Feedico as structured backup — monetized via Admitad/Temu Affiliate, paid out through Payoneer, taxed at 0.25% via PSEB registration — with no COD, no checkout, and no inventory, because any other model requires capital we don't have as students.
+
+---
+
+❓ SECTION 15: DECISIONS I NEED FROM YOU
+
+Before we start building, I need your agreement or pushback on these:
+
+1. Differentiator: Is "56 similar + one free on AliExpress" our main hook, or do you want a different angle (curated lists, reviews, categories)?
+2. Catalog speed: Are you okay building Amazon at ~10,000–30,000 unique products/month, or do we explore paid tiers early to go faster?
+3. Payout handling: Who checks the affiliate dashboards and requests payouts? Split or one person?
+4. Tax registration: Do you already have an NTN? Who handles PSEB registration and annual filing?
+5. Build division: What do you want to own vs. what I own? (I'm thinking: I handle backend/data pipeline, you handle frontend/UI — or we split both.)
+6. Timeline: When do we want the first working product page live? (My suggestion: 2 weeks for a barebones Amazon+AliExpress page with redirect links.)
+
+---
+
+End of Handoff Document.
+Version: 2.0 (ground-truthed)
+Status: Ready for partner review and build kickoff.
